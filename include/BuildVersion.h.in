@@ -1,0 +1,13 @@
+#ifndef BUILDVERSION_H
+#define BUILDVERSION_H
+
+#define PNR_VERSION_MAJOR @pnr-gb-dumper_VERSION_MAJOR@
+#define PNR_VERSION_MINOR @pnr-gb-dumper_VERSION_MINOR@
+#define PNR_VERSION_PATCH @pnr-gb-dumper_VERSION_PATCH@
+#define PNR_BUILD_VERSION_TYPE '@BUILD_VERSION_TYPE@'
+
+#if PNR_BUILD_VERSION_TYPE == 'U'
+#define DEBUG
+#endif
+
+#endif /* BUILDVERSION_H */
