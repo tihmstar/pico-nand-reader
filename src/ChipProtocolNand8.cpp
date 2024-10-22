@@ -23,28 +23,35 @@
 #define PROTO_NAND8_RSP_PIO       pio1
 #define PROTO_NAND8_RSP_SM        0
 
-
 /*
   0-7     Data
-  8       RB
-  9       ~RE
-  10      ~WE
-  11      ALE
-  12      CLE
+
+  16      RB
+
+  17      CLE
+  18      ALE
+  19      ~WE
+  20      ~RE
   --------
-  13      ~WP  //0 protected //1 not protected
-  14-17   ~CE0-3
+  21      ~WP //0 protected //1 not protected
+  22      CE0
+  26      CE1
+  27      CE2
+  28      CE3
 */
 
-#define NAND_RB    8
+#define NAND_RB     16
 
-#define NAND_ALE   9
-#define NAND_CLE  10
-#define NAND_WE   11
-#define NAND_RE   12
+#define NAND_CLE    17
+#define NAND_ALE    18
+#define NAND_WE     19
+#define NAND_RE     20
 
-#define NAND_WP   13
-#define NAND_CE0  14
+#define NAND_WP     21
+#define NAND_CE0    22
+#define NAND_CE1    26
+#define NAND_CE2    27
+#define NAND_CE3    28
 
 #pragma mark ChipProtocolNand8
 ChipProtocolNand8::ChipProtocolNand8()
@@ -53,12 +60,12 @@ ChipProtocolNand8::ChipProtocolNand8()
 ,_bufPageRead{NULL}, _bufPageIndex(0)
 ,_pageAddress(0), _readPages(0), _pageSize(0), _readCE(-1)
 {
-  for (int i=0; i<18; i++){
+  for (int i=0; i<29; i++){
     gpio_init(i);
     gpio_set_dir(i, GPIO_OUT);
   }
 
-  for (int i=0; i<8; i++){
+  for (int i=0; i<16; i++){
     gpio_put(i, 0);
   }
 
@@ -69,13 +76,17 @@ ChipProtocolNand8::ChipProtocolNand8()
   gpio_put(NAND_CLE, 0);
   gpio_put(NAND_WP, 1);
 
-  for (int i=0; i<4; i++){
-    gpio_put(NAND_CE0+i, 1);
-  }
+  gpio_put(NAND_CE0, 1);
+  gpio_put(NAND_CE1, 1);
+  gpio_put(NAND_CE2, 1);
+  gpio_put(NAND_CE3, 1);
 
-  for (int i=0; i<13; i++){
+  for (int i=0; i<17; i++){
     gpio_set_function(i, GPIO_FUNC_PIO0);
   }
+  gpio_set_function(NAND_CLE, GPIO_FUNC_PIO0);
+  gpio_set_function(NAND_ALE, GPIO_FUNC_PIO0);
+  gpio_set_function(NAND_WE, GPIO_FUNC_PIO0);
 
   gpio_set_function(NAND_RE, GPIO_FUNC_PIO1);
 
@@ -115,7 +126,12 @@ ChipProtocolNand8::~ChipProtocolNand8(){
 
 #pragma mark private
 void ChipProtocolNand8::setCEEnabled(uint8_t CE, int enabled){
-  gpio_put(NAND_CE0 + (CE&3), enabled == 0);
+  CE &= 3;
+  if (CE == 0){
+    gpio_put(NAND_CE0, enabled == 0);
+  }else{
+    gpio_put(NAND_CE1 + ((CE-1)&3), enabled == 0);
+  }
 }
 
 

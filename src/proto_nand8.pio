@@ -6,7 +6,7 @@
 start:
   PUSH
   //set data to input
-  MOV OSR, NULL           side 0b100 //(WE=1, CLE=0, ALE=0)  //default state
+  MOV OSR, NULL           side 0b100 //(WE=1, ALE=0, CLE=0)  //default state
   OUT PINDIRS, 8        
 
   PULL  //get command size
@@ -18,32 +18,32 @@ start:
 
 read_cmd_byte:
   PULL          //get command byte
-  OUT PINS, 8             side 0b110 //(WE=1, CLE=1, ALE=0)
-  OUT NULL, 8             side 0b010 //(WE=0, CLE=1, ALE=0)
-  JMP Y-- read_cmd_byte   side 0b110 //(WE=1, CLE=1, ALE=0)
+  OUT PINS, 8             side 0b101 //(WE=1, ALE=0, CLE=1)
+  OUT NULL, 8             side 0b001 //(WE=0, ALE=0, CLE=1)
+  JMP Y-- read_cmd_byte   side 0b101 //(WE=1, ALE=0, CLE=1)
 
 read_addr:
-  PULL                    side 0b100 //(WE=1, CLE=0, ALE=0)  //default state
+  PULL                    side 0b100 //(WE=1, ALE=0, CLE=0)  //default state
   MOV Y, OSR
   JMP Y-- read_addr_byte
   JMP read_data
 read_addr_byte:
   PULL         
-  OUT PINS, 8             side 0b101 //(WE=1, CLE=0, ALE=1)
-  OUT NULL, 8             side 0b001 //(WE=0, CLE=0, ALE=1)
-  JMP Y-- read_addr_byte  side 0b101 //(WE=1, CLE=0, ALE=1)
+  OUT PINS, 8             side 0b110 //(WE=1, ALE=1, CLE=0)
+  OUT NULL, 8             side 0b010 //(WE=0, ALE=1, CLE=0)
+  JMP Y-- read_addr_byte  side 0b110 //(WE=1, ALE=1, CLE=0)
 
 read_data:
-  PULL                     side 0b100 //(WE=1, CLE=0, ALE=0)  //default state
+  PULL                     side 0b100 //(WE=1, ALE=0, CLE=0)  //default state
   MOV Y, OSR
   JMP Y-- read_addr_byte
   JMP start
 
 read_data_byte:
   PULL         
-  OUT PINS, 8             side 0b100 //(WE=1, CLE=0, ALE=0)  //default state
-  OUT NULL, 8             side 0b000 //(WE=0, CLE=0, ALE=0)
-  JMP Y-- read_addr_byte  side 0b100 //(WE=1, CLE=0, ALE=0)  //default state
+  OUT PINS, 8             side 0b100 //(WE=1, ALE=0, CLE=0)  //default state
+  OUT NULL, 8             side 0b000 //(WE=0, ALE=0, CLE=0)
+  JMP Y-- read_addr_byte  side 0b100 //(WE=1, ALE=0, CLE=0)  //default state
 .wrap
 
 
@@ -63,7 +63,7 @@ public start:
   PUSH                    side 0b1 //(RE=1)  //default state
   PULL
   MOV Y, OSR              side 0b1 //(RE=1)  //default state
-  WAIT 1 PIN 8  //always wait for RB
+  WAIT 1 PIN 16  //always wait for RB
   JMP Y-- get_data_byte_start
 .wrap
 
@@ -71,31 +71,35 @@ public start:
 % c-sdk {
 /*
   0-7     Data
-  8       RB
 
-  9      ALE
-  10     CLE
-  11     ~WE
-  12     ~RE
+  16      RB
+
+  17      CLE
+  18      ALE
+  19      ~WE
+  20      ~RE
   --------
-  13      WP
-  14-17   CE0-3
+  21      ~WP
+  22      CE0
+  26      CE1
+  27      CE2
+  28      CE3
 */
 
 static inline void proto_nand8_req_program_init(PIO pio, uint sm, uint offset) {
   pio_sm_config c = proto_nand8_req_program_get_default_config(offset);
 
-  pio_sm_set_consecutive_pindirs(pio, sm, 0, 12, true);  //data+cntrl is out
+  pio_sm_set_consecutive_pindirs(pio, sm, 0, 20, true);  //data+cntrl is out
   sm_config_set_out_pins(&c, 0, 8);
 
-  pio_sm_set_consecutive_pindirs(pio, sm, 0, 9, false); //data+RB is in
+  pio_sm_set_consecutive_pindirs(pio, sm, 0, 17, false); //data+RB is in
   sm_config_set_in_pins(&c, 0);
 
   pio_sm_set_set_pins(pio, sm, 0, 8);  //we to switch data pins
   sm_config_set_set_pins(&c, 0, 8);
 
-  pio_sm_set_sideset_pins(pio, sm, 9);
-  sm_config_set_sideset_pins(&c, 9);
+  pio_sm_set_sideset_pins(pio, sm, 17);
+  sm_config_set_sideset_pins(&c, 17);
   sm_config_set_sideset(&c, 4, true, false);
 
   float freq = 20e6; //100MHz
@@ -111,14 +115,14 @@ static inline void proto_nand8_req_program_init(PIO pio, uint sm, uint offset) {
 static inline void proto_nand8_rsp_program_init(PIO pio, uint sm, uint offset) {
   pio_sm_config c = proto_nand8_rsp_program_get_default_config(offset);
 
-  pio_sm_set_consecutive_pindirs(pio, sm, 12, 1, true);  //RE is out
-  sm_config_set_out_pins(&c, 12, 1);
+  pio_sm_set_consecutive_pindirs(pio, sm, 20, 1, true);  //RE is out
+  sm_config_set_out_pins(&c, 20, 1);
 
-  pio_sm_set_consecutive_pindirs(pio, sm, 0, 9, false); //data+RB is in
+  pio_sm_set_consecutive_pindirs(pio, sm, 0, 17, false); //data+RB is in
   sm_config_set_in_pins(&c, 0);
 
-  pio_sm_set_sideset_pins(pio, sm, 12);
-  sm_config_set_sideset_pins(&c, 12);
+  pio_sm_set_sideset_pins(pio, sm, 20);
+  sm_config_set_sideset_pins(&c, 20);
   sm_config_set_sideset(&c, 2, true, false);
 
   float freq = 20e6; //100MHz
